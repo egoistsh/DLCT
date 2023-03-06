@@ -1,3 +1,7 @@
 one_drive
-*.pth
 saved_models/
+*.pth
+tensorboard_logs/
+tem*
+*.jar
+evaluation/
