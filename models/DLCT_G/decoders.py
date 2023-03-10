@@ -3,8 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 import numpy as np
 
-from models.DLCT.attention import MultiHeadAttention
-from models.DLCT.utils import sinusoid_encoding_table, PositionWiseFeedForward
+from models.DLCT_G.attention import MultiHeadAttention, MultiHeadAttentionWithGrid
+from models.DLCT_G.utils import sinusoid_encoding_table, PositionWiseFeedForward
 from models.containers import Module, ModuleList
 
 
@@ -15,7 +15,7 @@ class DecoderLayer(Module):
         self.self_att = MultiHeadAttention(d_model, d_k, d_v, h, dropout, can_be_stateful=True,
                                            attention_module=self_att_module,
                                            attention_module_kwargs=self_att_module_kwargs)
-        self.enc_att = MultiHeadAttention(d_model, d_k, d_v, h, dropout, can_be_stateful=False,
+        self.enc_att = MultiHeadAttentionWithGrid(d_model, d_k, d_v, h, dropout, can_be_stateful=False,
                                           attention_module=enc_att_module,
                                           attention_module_kwargs=enc_att_module_kwargs)
 
@@ -26,14 +26,14 @@ class DecoderLayer(Module):
         self.lnorm2 = nn.LayerNorm(d_model)
         self.pwff = PositionWiseFeedForward(d_model, d_ff, dropout)
 
-    def forward(self, input, enc_output, mask_pad, mask_self_att, mask_enc_att, pos):
+    def forward(self, input, enc_output, grids, mask_pad, mask_self_att, mask_enc_att, pos):
         # MHA+AddNorm
         self_att = self.self_att(input, input, input, mask_self_att)
         self_att = self.lnorm1(input + self.dropout1(self_att))
         self_att = self_att * mask_pad
         # MHA+AddNorm
         key = enc_output + pos
-        enc_att = self.enc_att(self_att, key, enc_output, mask_enc_att)
+        enc_att = self.enc_att(self_att, key, enc_output, grids, mask_enc_att)
         enc_att = self.lnorm2(self_att + self.dropout2(enc_att))
         enc_att = enc_att * mask_pad
         # FFN+AddNorm
@@ -61,7 +61,7 @@ class TransformerDecoderLayer(Module):
         self.register_state('running_mask_self_attention', torch.zeros((1, 1, 0)).byte())
         self.register_state('running_seq', torch.zeros((1,)).long())
 
-    def forward(self, input, encoder_output, mask_encoder, pos):
+    def forward(self, input, encoder_output, grids, mask_encoder, pos):
         # input (b_s, seq_len)
         b_s, seq_len = input.shape[:2]
         mask_queries = (input != self.padding_idx).unsqueeze(-1).float()  # (b_s, seq_len, 1)
@@ -91,7 +91,7 @@ class TransformerDecoderLayer(Module):
             pos = pos.expand(shape)  # bs * 5 * 50 * 512
             pos = pos.contiguous().flatten(0, 1)  # (bs*5) * 50 * 512
         for i, l in enumerate(self.layers):
-            out = l(out, encoder_output, mask_queries, mask_self_attention, mask_encoder, pos=pos)
+            out = l(out, encoder_output, grids, mask_queries, mask_self_attention, mask_encoder, pos=pos)
             # print('decoder layer out')
             # print(out[11])
 

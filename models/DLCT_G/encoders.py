@@ -1,8 +1,8 @@
 from torch.nn import functional as F
-from models.DLCT.utils import PositionWiseFeedForward
+from models.DLCT_G.utils import PositionWiseFeedForward
 import torch
 from torch import nn
-from models.DLCT.attention import MultiHeadBoxAttention as MultiHeadAttention
+from models.DLCT_G.attention import MultiHeadBoxAttention as MultiHeadAttention
 from ..relative_embedding import BoxRelationalEmbedding, GridRelationalEmbedding, AllRelationalEmbedding
 
 

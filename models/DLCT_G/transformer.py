@@ -51,7 +51,7 @@ class Transformer(CaptioningModel):
         # print(all_visual.shape)
         enc_output, mask_enc = self.encoder(regions=regions, grids=grids,boxes=boxes,aligns=aligns, region_embed=region_embed,grid_embed=grid_embed)
         pos = torch.cat([region_embed, grid_embed], dim=1)
-        dec_output = self.decoder(seq, enc_output, mask_enc, pos=pos)
+        dec_output = self.decoder(seq, enc_output, grids, mask_enc, pos=pos)
         return dec_output
 
     def init_state(self, b_s, device):
@@ -79,7 +79,7 @@ class Transformer(CaptioningModel):
             else:
                 it = prev_output
 
-        return self.decoder(it, self.enc_output, self.mask_enc, pos=self.pos)
+        return self.decoder(it, self.enc_output, grids, self.mask_enc, pos=self.pos)
 
 
 class TransformerEnsemble(CaptioningModel):
